@@ -1,0 +1,259 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  password     String
+  role         String    @default("CLIENT")
+  image        String?
+  phone        String?
+  company      String?
+  address      String?
+  city         String?
+  state        String?
+  country      String?   @default("US")
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  client       Client?
+  sessions     Session[]
+  activityLogs ActivityLog[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Client {
+  id           String       @id @default(cuid())
+  userId       String?      @unique
+  user         User?        @relation(fields: [userId], references: [id])
+  name         String
+  email        String       @unique
+  phone        String?
+  company      String?
+  address      String?
+  city         String?
+  state        String?
+  country      String?      @default("US")
+  status       String       @default("PROSPECT")
+  source       String?
+  notes        String?
+  tags         String?
+  avatarUrl    String?
+  totalSpent   Float        @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  quotes       Quote[]
+  proposals    Proposal[]
+  invoices     Invoice[]
+  assets       Asset[]
+  onboarding   Onboarding?
+}
+
+model Onboarding {
+  id              String    @id @default(cuid())
+  clientId        String    @unique
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  step            Int       @default(1)
+  totalSteps      Int       @default(5)
+  completed       Boolean   @default(false)
+  businessType    String?
+  businessSize    String?
+  budget          String?
+  services        String?
+  timeline        String?
+  goals           String?
+  howDidYouHear   String?
+  additionalInfo  String?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Quote {
+  id           String    @id @default(cuid())
+  clientId     String
+  client       Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  items        String    // JSON stringified array
+  subtotal     Float
+  taxRate      Float     @default(0)
+  taxAmount    Float     @default(0)
+  discount     Float     @default(0)
+  total        Float
+  status       String    @default("DRAFT")
+  validUntil   DateTime?
+  notes        String?
+  terms        String?
+  aiGenerated  Boolean   @default(false)
+  sentAt       DateTime?
+  viewedAt     DateTime?
+  acceptedAt   DateTime?
+  declinedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  invoices     Invoice[]
+}
+
+model Proposal {
+  id           String    @id @default(cuid())
+  clientId     String
+  client       Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title        String
+  executive    String?
+  content      String
+  sections     String    // JSON stringified array
+  coverImage   String?
+  status       String    @default("DRAFT")
+  aiGenerated  Boolean   @default(false)
+  sentAt       DateTime?
+  viewedAt     DateTime?
+  signedAt     DateTime?
+  signature    String?
+  signedBy     String?
+  declinedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Invoice {
+  id              String    @id @default(cuid())
+  clientId        String
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  quoteId         String?
+  quote           Quote?    @relation(fields: [quoteId], references: [id])
+  invoiceNumber   String    @unique
+  items           String    // JSON stringified array
+  subtotal        Float
+  taxRate         Float     @default(0)
+  taxAmount       Float     @default(0)
+  discount        Float     @default(0)
+  total           Float
+  status          String    @default("DRAFT")
+  dueDate         DateTime?
+  paidAt          DateTime?
+  stripePaymentId String?
+  stripeInvoiceId String?
+  paymentMethod   String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  payments        Payment[]
+}
+
+model Payment {
+  id              String    @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount          Float
+  currency        String    @default("usd")
+  status          String    @default("PENDING")
+  stripePaymentId String?
+  stripeSessionId String?
+  paymentMethod   String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Asset {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name        String
+  type        String    @default("FILE")
+  url         String?
+  fileSize    Int?
+  mimeType    String?
+  description String?
+  tags        String?
+  metadata    String?   // JSON stringified
+  status      String    @default("ACTIVE")
+  version     String?   @default("1.0")
+  isPublic    Boolean   @default(false)
+  uploadedBy  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ServicePackage {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  currency    String    @default("usd")
+  billingType String    @default("ONE_TIME")
+  features    String?   // JSON stringified array
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entity     String?
+  entityId   String?
+  details    String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  type      String   @default("string")
+  group     String   @default("general")
+  label     String?
+  updatedAt DateTime @updatedAt
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  subject   String
+  body      String
+  type      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BlogPost {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  excerpt     String?
+  content     String
+  coverImage  String?
+  tags        String?
+  metaTitle   String?
+  metaDesc    String?
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+  authorId    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
